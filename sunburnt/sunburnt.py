@@ -6,6 +6,7 @@ from itertools import islice
 import logging
 import socket, time, urllib, urlparse
 import warnings
+import random
 
 
 from .schema import SolrSchema, SolrError
@@ -250,6 +251,85 @@ class SolrInterface(object):
         q = LuceneQuery(self.schema)
         q.add(args, kwargs)
         return q
+
+
+class SolrServerPool(object):
+    def __init__(self, read_urls, write_urls, schemadoc=None, http_connection=None, retry_timeout=-1, max_length_get_url=MAX_LENGTH_GET_URL):
+      self.read_pool = [SolrInterface(url, schemadoc, http_connection, 'r', retry_timeout, max_length_get_url) for url in read_urls]
+      self.write_pool = [SolrInterface(url, schemadoc, http_connection, 'w', retry_timeout, max_length_get_url) for url in write_urls]
+
+    def get_solr(self, exclude=[]):
+      selection = None
+      while not selection or selection in exclude:
+        selection = self.read_pool[random.randint(0, len(self.read_pool) - 1)]
+
+      return selection
+
+    def add(self, docs, chunk=100, **kwargs):
+      for server in self.write_pool:
+        server.add(docs, chunk, **kwargs)
+
+    def delete(self, docs=None, queries=None, **kwargs):
+      for server in self.write_pool:
+        server.delete(docs, queries, **kwargs)
+
+    def commit(self, *args, **kwargs):
+      for server in self.write_pool:
+        server.commit(*args, **kwargs)
+
+    def optimize(self, *args, **kwargs):
+      for server in self.write_pool:
+        server.optimize(*args, **kwargs)
+
+    def rollback(self):
+      for server in self.write_pool:
+        server.rollback()
+
+    def delete_all(self):
+      for server in self.write_pool:
+        server.delete_all()
+
+    def search(self, **kwargs):
+      server = None
+      try:
+        server = self.get_solr()
+        return server.search(**kwargs)
+      except Exception:
+        return self.get_solr(exclude=[server]).search(**kwargs)
+
+    def query(self, *args, **kwargs):
+        server = None
+        try:
+          server = self.get_solr()
+          return server.query(*args, **kwargs)
+        except Exception, e:
+          return self.get_solr(exclude=[server]).query(*args, **kwargs)
+
+
+    def mlt_search(self, content=None, **kwargs):
+        server = None
+        try:
+          server = self.get_solr()
+          return server.mlt_search(content, **kwargs)
+        except Exception:
+          return self.get_solr(exclude=[server]).mlt_search(content, **kwargs)
+
+    def mlt_query(self, fields=None, content=None, content_charset=None, url=None, query_fields=None,
+                  **kwargs):
+        server = None
+        try:
+          server = self.get_solr()
+          return server.mlt_query(fields, content, content_charset, url, query_fields, **kwargs)
+        except Exception:
+          return self.get_solr(exclude=[server]).mlt_search(fields, content, content_charset, url, query_fields, **kwargs)
+
+    def Q(self, *args, **kwargs):
+        server = None
+        try:
+          server = self.get_solr()
+          return server.Q(*args, **kwargs)
+        except Exception:
+          return self.get_solr(exclude=[server]).Q(*args, **kwargs)
 
 
 def grouper(iterable, n):
