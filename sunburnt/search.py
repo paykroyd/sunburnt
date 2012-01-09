@@ -451,7 +451,7 @@ class BaseSearch(object):
         newself.paginator.update(start, rows)
         return newself
 
-    def spatial(self, field, lat, lng, d=20):
+    def spatial(self, field, lat, lng, d):
         newself = self.clone()
         newself.spatial_options.update(field, lat, lng, d)
         return newself
@@ -927,12 +927,12 @@ class SpatialOptions(Options):
     def options(self):
         opts = {}
         if self.field is not None:
-            opts['fq'] = "{!geofilt}"
             opts['sfield'] = self.field
             opts['sort'] = "geodist() asc"
         if self.lat is not None and self.lon is not None:
             opts['pt'] = str(self.lat) + ',' + str(self.lon)
         if self.d is not None:
+            opts['fq'] = "{!geofilt}"
             opts['d'] = self.d
         return opts
 
