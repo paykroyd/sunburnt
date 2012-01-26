@@ -550,7 +550,14 @@ class SolrUpdate(object):
         if not doc:
             return self.DOC()
         else:
-            return self.DOC(*reduce(operator.add,
+            if doc.get('doc_boost'):
+                boost = doc['doc_boost']
+                del doc['doc_boost']
+                return self.DOC({'boost': boost}, *reduce(operator.add,
+                                    [self.fields(name, values)
+                                     for name, values in doc.items()]))
+            else:
+                return self.DOC(*reduce(operator.add,
                                     [self.fields(name, values)
                                      for name, values in doc.items()]))
 
