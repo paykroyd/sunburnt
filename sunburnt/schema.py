@@ -551,11 +551,12 @@ class SolrUpdate(object):
             return self.DOC()
         else:
             if doc.get('doc_boost'):
-                boost = doc['doc_boost']
-                del doc['doc_boost']
+                index_doc = doc.copy()
+                boost = index_doc['doc_boost']
+                del index_doc['doc_boost']
                 return self.DOC({'boost': boost}, *reduce(operator.add,
                                     [self.fields(name, values)
-                                     for name, values in doc.items()]))
+                                     for name, values in index_doc.items()]))
             else:
                 return self.DOC(*reduce(operator.add,
                                     [self.fields(name, values)
