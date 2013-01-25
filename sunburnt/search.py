@@ -597,6 +597,14 @@ class SolrSearch(BaseSearch):
         result = self.interface.search(**self.options())
         return self.transform_result(result, constructor)
 
+    def execute_geo3x(self, constructor=dict):
+        options = self.options()
+        options['sort'] = 'score asc'
+        if options.has_key('fq'):
+            del options['fq']
+        result = self.interface.search_geo3x(**options)
+        return self.transform_result(result, constructor)
+
 
 class MltSolrSearch(BaseSearch):
     """Manage parameters to build a MoreLikeThisHandler query"""
