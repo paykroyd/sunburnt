@@ -212,6 +212,14 @@ class SolrInterface(object):
         params = params_from_dict(**kwargs)
         return self.schema.parse_response(self.conn.select(params))
 
+    def search_geo3x(self, **kwargs):
+        if not self.readable:
+            raise TypeError("This Solr instance is only for writing")
+        if kwargs['pt'] is not None:                   # If spatial search, only term allowed is distance
+            kwargs['q'] = '{!func}geodist()'           # Solr 3.6 workaround - Per Hamnqvist
+        params = params_from_dict(**kwargs)
+        return self.schema.parse_response(self.conn.select(params))
+
     def query(self, *args, **kwargs):
         if not self.readable:
             raise TypeError("This Solr instance is only for writing")
