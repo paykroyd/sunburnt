@@ -362,7 +362,8 @@ class BaseSearch(object):
     """Base class for common search options management"""
     option_modules = ('query_obj', 'filter_obj', 'paginator',
                       'more_like_this', 'highlighter', 'faceter',
-                      'sorter', 'facet_querier', 'field_limiter', 'spatial_options', 'boost_options')
+                      'sorter', 'facet_querier', 'field_limiter', 'spatial_options', 'boost_options',
+                      'custom_score_options')
 
     def _init_common_modules(self):
         self.query_obj = LuceneQuery(self.schema, u'q')
@@ -375,6 +376,7 @@ class BaseSearch(object):
         self.facet_querier = FacetQueryOptions(self.schema)
         self.spatial_options = SpatialOptions(self.schema)
         self.boost_options = BoostOptions(self.schema)
+        self.custom_score_options = CustomScoringOptions(self.schema)
 
     def clone(self):
         return self.__class__(interface=self.interface, original=self)
@@ -461,6 +463,11 @@ class BaseSearch(object):
         newself.boost_options.update(custom_score)
         return newself
 
+    def custom_score(self, custom_score):
+        newself = self.clone()
+        newself.custom_score_options.update(custom_score)
+        return newself
+
     def sort_by(self, field):
         newself = self.clone()
         newself.sorter.update(field)
@@ -477,6 +484,7 @@ class BaseSearch(object):
             options.update(getattr(self, option_module).options())
 
         options.update(self.boost_options.options(options[u'q']))
+        options.update(self.custom_score_options.options(options[u'q']))
         # Next line is for pre-2.6.5 python
         return dict((k.encode('utf8'), v) for k, v in options.items())
 
@@ -944,6 +952,7 @@ class SpatialOptions(Options):
             opts['d'] = self.d
         return opts
 
+
 class BoostOptions(Options):
     def __init__(self, schema, original=None):
         self.schema = schema
@@ -960,6 +969,28 @@ class BoostOptions(Options):
         opts = {}
         if q and self.custom_score is not None:
             opts[u'q'] = "{!boost b=" + self.custom_score + "}" + q
+        return opts
+
+
+class CustomScoringOptions(Options):
+    """
+    Used to add custom scoring to a query in the form: q=...+_val+:$custom_score
+    """
+    def __init__(self, schema, original=None):
+        self.schema = schema
+        if original is None:
+            self.custom_score = None
+        else:
+            self.custom_score = original.custom_score
+
+    def update(self, custom_score):
+        if custom_score is not None:
+            self.custom_score = custom_score
+
+    def options(self, q=None):
+        opts = {}
+        if q and self.custom_score is not None:
+            opts[u'q'] = q + '+_val_:' + self.custom_score
         return opts
 
 
